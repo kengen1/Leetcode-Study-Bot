@@ -11,5 +11,10 @@
   "license": "ISC",
   "dependencies": {
     "discord.js": "^14.14.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.24",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
   }
 }
