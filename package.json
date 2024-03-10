@@ -15,7 +15,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "discord.js": "^14.14.1"
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.4.5",
+    "moment-timezone": "^0.5.45"
   },
   "devDependencies": {
     "@types/node": "^20.11.24",
