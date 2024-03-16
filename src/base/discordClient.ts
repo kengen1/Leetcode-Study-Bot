@@ -76,9 +76,8 @@ export class DiscordBot {
             'Content-Type': 'application/json',
             'Referer': 'https://leetcode.com/',
         };
-    
+
         try {
-            // First GraphQL Query
             const questionOfTodayQuery = {
                 query: `
                     query questionOfToday {
@@ -91,13 +90,11 @@ export class DiscordBot {
                     }
                 `,
             };
-    
-            // Execute the first query
+
             let response = await axios.post(graphqlEndpoint, questionOfTodayQuery, { headers });
             const questionTitleSlug = response.data.data.activeDailyCodingChallengeQuestion.question.titleSlug;
             console.log(`Today's question titleSlug: ${questionTitleSlug}`);
-    
-            // Prepare the second GraphQL Query
+
             const questionContentQuery = {
                 query: `
                     query questionContent($titleSlug: String!) {
@@ -111,24 +108,63 @@ export class DiscordBot {
                     titleSlug: questionTitleSlug
                 }
             };
-    
+
             // Execute the second query
             response = await axios.post(graphqlEndpoint, questionContentQuery, { headers });
             const questionContent = response.data.data.question.content;
-            console.log(`Question Description: ${questionContent}`);
-    
+
+            const discordMarkdownContent = this.htmlToDiscordMarkdown(questionContent);
+
+            console.log(`**LEETCODE DAILY QUESTION: \n ${questionTitleSlug} \n ${discordMarkdownContent}`);
+
             // Respond with the question content
-            message.reply(`Question Description: ${questionContent}`);
+            message.reply(`**LEETCODE DAILY QUESTION:** \n ${questionTitleSlug} \n ${discordMarkdownContent}`);
         } catch (error) {
             console.error('Error executing GraphQL query:', error);
             message.reply('Sorry, there was an error fetching the question information.');
         }
     }
-    
-
 
     private handleHintCommand(message: Message): void {
         // Placeholder
         message.reply('Here is your hint. Good luck!');
     }
+
+    private htmlToDiscordMarkdown(html: string): string {
+        let markdown = html
+            // Handle the replacements
+            .replace(/<\s*p[^>]*>\s*<\s*strong[^>]*>(.*?)<\/\s*strong\s*>\s*<\/\s*p\s*>/g, '**$1**\n\n')
+            .replace(/<\s*em\s*>/g, '*') // Italics
+            .replace(/<\s*\/\s*em\s*>/g, '*')
+            .replace(/<\s*code\s*>/g, '`') // Inline code
+            .replace(/<\s*\/\s*code\s*>/g, '`')
+            .replace(/<\s*ul\s*>/g, '') // Remove ul tags
+            .replace(/<\s*\/\s*ul\s*>/g, '')
+            // Add a dash and a space for list items, ensure not to add extra indentation
+            .replace(/<\s*li\s*>/g, '\n- ')
+            .replace(/<\/\s*li\s*>/g, '') // Remove end of list item tag
+            .replace(/<\s*p\s*>/g, '') // Remove p tags
+            .replace(/<\/\s*p\s*>/g, '\n\n') // Paragraph breaks
+            .replace(/<\s*br\s*\/?>/g, '\n') // Line breaks
+            .replace(/&nbsp;/g, ' ') // Space entities
+            .replace(/&lt;/g, '<') // Less than
+            .replace(/&gt;/g, '>') // Greater than
+            .replace(/&amp;/g, '&') // Ampersand
+            .replace(/&quot;/g, '"') // Double quotes
+            .replace(/&apos;/g, '\'') // Single quotes
+            .replace(/<sup>(.*?)<\/sup>/g, '^$1') // Superscript
+            .replace(/(Example \d+:)/g, '**$1**')
+            .replace(/(Input:)/g, '**$1**')
+            .replace(/(Output:)/g, '**$1**')
+            .replace(/(Explanation:)/g, '**$1**')
+            .replace(/(Constraints:)/g, '**$1**')
+            .replace(/<[^>]+>/g, ''); // Remove any remaining tags
+
+        // Normalize line breaks: Reduce multiple newlines to a single newline
+        markdown = markdown.replace(/\n{3,}/g, '\n\n'); // Reduce 3 or more newlines to just double newline
+        markdown = markdown.trim(); // Trim whitespace at start and end
+
+        return markdown;
+    }
+
 }
