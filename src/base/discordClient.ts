@@ -69,66 +69,63 @@ export class DiscordBot {
         message.reply('Help explaining the problem');
     }
 
-    private handleDailyCommand(message: Message): void {
-        // Placeholder
-        message.reply('Daily LeetCode Question');
-        
-        // Create GraphQL request to https://leetcode.com/graphql/
-        // Define the GraphQL query
-        const graphqlQuery = `
-            query questionOfToday {
-                activeDailyCodingChallengeQuestion {
-                date
-                userStatus
-                link
-                question {
-                    acRate
-                    difficulty
-                    freqBar
-                    frontendQuestionId: questionFrontendId
-                    isFavor
-                    paidOnly: isPaidOnly
-                    status
-                    title
-                    titleSlug
-                    hasVideoSolution
-                    hasSolution
-                    topicTags {
-                    name
-                    id
-                    slug
-                    }
-                }
-                }
-            }
-            `;
-
-        // Define the GraphQL endpoint
+    private async handleDailyCommand(message: Message): Promise<void> {
+        // Define the endpoint and headers
         const graphqlEndpoint = 'https://leetcode.com/graphql/';
-
-        // Define the GraphQL request headers
         const headers = {
-        'Content-Type': 'application/json',
-        Referer: 'https://leetcode.com/',
+            'Content-Type': 'application/json',
+            'Referer': 'https://leetcode.com/',
         };
-
-        // Send the POST request to the GraphQL endpoint
-        axios.post(
-        graphqlEndpoint,
-        {
-            query: graphqlQuery,
-        },
-        { headers }
-        )
-        .then((response) => {
-            console.log('GraphQL response:', response.data);
-            console.log(response.data.question);
-
-        })
-        .catch((error) => {
+    
+        try {
+            // First GraphQL Query
+            const questionOfTodayQuery = {
+                query: `
+                    query questionOfToday {
+                        activeDailyCodingChallengeQuestion {
+                            question {
+                                title
+                                titleSlug
+                            }
+                        }
+                    }
+                `,
+            };
+    
+            // Execute the first query
+            let response = await axios.post(graphqlEndpoint, questionOfTodayQuery, { headers });
+            const questionTitleSlug = response.data.data.activeDailyCodingChallengeQuestion.question.titleSlug;
+            console.log(`Today's question titleSlug: ${questionTitleSlug}`);
+    
+            // Prepare the second GraphQL Query
+            const questionContentQuery = {
+                query: `
+                    query questionContent($titleSlug: String!) {
+                        question(titleSlug: $titleSlug) {
+                            content
+                            mysqlSchemas
+                        }
+                    }
+                `,
+                variables: {
+                    titleSlug: questionTitleSlug
+                }
+            };
+    
+            // Execute the second query
+            response = await axios.post(graphqlEndpoint, questionContentQuery, { headers });
+            const questionContent = response.data.data.question.content;
+            console.log(`Question Description: ${questionContent}`);
+    
+            // Respond with the question content
+            message.reply(`Question Description: ${questionContent}`);
+        } catch (error) {
             console.error('Error executing GraphQL query:', error);
-        });
+            message.reply('Sorry, there was an error fetching the question information.');
+        }
     }
+    
+
 
     private handleHintCommand(message: Message): void {
         // Placeholder
