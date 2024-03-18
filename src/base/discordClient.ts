@@ -85,6 +85,7 @@ export class DiscordBot {
                             question {
                                 title
                                 titleSlug
+                                difficulty
                             }
                         }
                     }
@@ -92,7 +93,10 @@ export class DiscordBot {
             };
 
             let response = await axios.post(graphqlEndpoint, questionOfTodayQuery, { headers });
+            const questionTitle = response.data.data.activeDailyCodingChallengeQuestion.question.title;
             const questionTitleSlug = response.data.data.activeDailyCodingChallengeQuestion.question.titleSlug;
+            const questionDifficulty = response.data.data.activeDailyCodingChallengeQuestion.question.difficulty;
+
             console.log(`Today's question titleSlug: ${questionTitleSlug}`);
 
             const questionContentQuery = {
@@ -115,10 +119,11 @@ export class DiscordBot {
 
             const discordMarkdownContent = this.htmlToDiscordMarkdown(questionContent);
 
-            console.log(`**LEETCODE DAILY QUESTION: \n ${questionTitleSlug} \n ${discordMarkdownContent}`);
+            console.log(`**LEETCODE DAILY QUESTION: \n ${questionTitle} \n ${questionContent}`);
 
             // Respond with the question content
-            message.reply(`**LEETCODE DAILY QUESTION:** \n ${questionTitleSlug} \n ${discordMarkdownContent}`);
+            message.reply(`**LEETCODE DAILY QUESTION:** \n ${questionTitle} \n ${discordMarkdownContent}`);
+            message.reply(`Difficulty: **[${questionDifficulty}]**`)
         } catch (error) {
             console.error('Error executing GraphQL query:', error);
             message.reply('Sorry, there was an error fetching the question information.');
