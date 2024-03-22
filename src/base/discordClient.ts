@@ -55,11 +55,10 @@ export class DiscordBot {
 
     private scheduleDailyMessage(): void {
         const executeDailyTask = async () => {
-            // Fetch daily question details
+
             const { title, titleSlug, difficulty, frontendQuestionId } = await fetchDailyQuestion();
             const link = `https://leetcode.com/problems/${titleSlug}/description/`;
 
-            // Format the message
             const formattedMessage = [
                 `**LeetCode Daily Question:**`,
                 `**${frontendQuestionId}. ${title}**`,
@@ -77,17 +76,15 @@ export class DiscordBot {
                 'If you are stuck, try using the `/hint` command.'
             ].join('\n');
 
-            // Ensure the channel is a TextChannel and send the message
             const channel = this.client.channels.cache.get(this.channelId) as TextChannel;
             if (!channel) return;
 
-            // Create thread and post the message
             const thread = await channel.threads.create({
                 name: 'Leetcode Daily',
-                autoArchiveDuration: 60, // Adjust as needed
+                autoArchiveDuration: 60*23,
                 reason: 'Discussion for LeetCode Daily Question',
             });
-            this.dailyQuestionThreadId = thread.id; // Store the thread ID
+            this.dailyQuestionThreadId = thread.id;
             thread.send(formattedMessage);
             channel.send(`<@1214886008823480382> Today's LeetCode question is up in the "Leetcode Daily" thread! 🚀`);
         };
@@ -100,7 +97,7 @@ export class DiscordBot {
             const msUntilNext9AM = next9AM.diff(now);
             setTimeout(() => {
                 executeDailyTask();
-                setInterval(executeDailyTask, 24 * 60 * 60 * 1000); // Schedule daily
+                setInterval(executeDailyTask, 24 * 60 * 60 * 1000);
             }, msUntilNext9AM);
         };
         scheduleTask();
@@ -110,8 +107,6 @@ export class DiscordBot {
         if (message.channelId === this.dailyQuestionThreadId) {
             try {
                 const hashtags: string[] = await fetchQuestionTags();
-
-                // Format each tag with backticks and join with newline character for separate lines
                 const hashtagString: string = hashtags.join(' ').split(' ').map(tag => `\`${tag}\``).join(' ');
                 const hintMessage: string = `Question tags:\n${hashtagString}\nThink about the direction you can take with these in mind!`;
 
