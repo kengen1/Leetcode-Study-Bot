@@ -1,11 +1,15 @@
 import { Client, GatewayIntentBits, TextChannel, Message } from 'discord.js';
-import * as moment from 'moment-timezone';
+import moment from 'moment-timezone';
 import axios from 'axios';
+import { fetchDailyQuestion } from '../queries/dailyQuestion';
+import { fetchQuestionContent } from '../queries/questionContent';
+import { fetchQuestionTags } from '../queries/dailyQuestionTags';
 
 export class DiscordBot {
     private client: Client;
     private readonly token: string;
     private readonly channelId: string;
+    private dailyQuestionThreadId: string | null = null;
 
     constructor(token: string, channelId: string) {
         this.client = new Client({
@@ -30,34 +34,15 @@ export class DiscordBot {
         this.client.login(this.token);
     }
 
-    private scheduleDailyMessage(): void {
-        const sendDailyMessage = () => {
-            const channel = this.client.channels.cache.get(this.channelId) as TextChannel;
-            channel?.send('Test message');
-        };
-
-        const sydneyTime = moment.tz('Australia/Sydney');
-        const nextSend = sydneyTime.clone().hour(12).minute(0).second(0);
-        if (sydneyTime > nextSend) nextSend.add(1, 'day');
-
-        setTimeout(() => {
-            sendDailyMessage();
-            setInterval(sendDailyMessage, 24 * 60 * 60 * 1000); // Repeat every 24 hours
-        }, nextSend.diff(sydneyTime));
-    }
-
     private handleMessage(message: Message): void {
         if (message.author.bot) return;
 
         switch (message.content.toLowerCase()) {
-            case '!help':
-                this.handleHelpCommand(message);
-                break;
-            case '!daily':
-                this.handleDailyCommand(message);
-                break;
             case '!hint':
                 this.handleHintCommand(message);
+                break;
+            case '!random':
+                //placeholder
                 break;
             default:
                 break;
@@ -65,111 +50,76 @@ export class DiscordBot {
     }
 
     private handleHelpCommand(message: Message): void {
-        // Placeholder
         message.reply('Help explaining the problem');
     }
 
-    private async handleDailyCommand(message: Message): Promise<void> {
-        // Define the endpoint and headers
-        const graphqlEndpoint = 'https://leetcode.com/graphql/';
-        const headers = {
-            'Content-Type': 'application/json',
-            'Referer': 'https://leetcode.com/',
+    private scheduleDailyMessage(): void {
+        const executeDailyTask = async () => {
+            // Fetch daily question details
+            const { title, titleSlug, difficulty, frontendQuestionId } = await fetchDailyQuestion();
+            const link = `https://leetcode.com/problems/${titleSlug}/description/`;
+
+            // Format the message
+            const formattedMessage = [
+                `**LeetCode Daily Question:**`,
+                `**${frontendQuestionId}. ${title}**`,
+                `**Difficulty:** ${difficulty}`,
+                '',
+                link,
+                '',
+                '**Discuss:**',
+                '- What\'s the brute force approach for this question?',
+                '- How can we optimize the algorithm?',
+                '- Is there a trick to this question? If so, what is it?',
+                '',
+                'Before sending code, please try and answer some or all of the above questions to spark conversation.',
+                '',
+                'If you are stuck, try using the `/hint` command.'
+            ].join('\n');
+
+            // Ensure the channel is a TextChannel and send the message
+            const channel = this.client.channels.cache.get(this.channelId) as TextChannel;
+            if (!channel) return;
+
+            // Create thread and post the message
+            const thread = await channel.threads.create({
+                name: 'Leetcode Daily',
+                autoArchiveDuration: 60, // Adjust as needed
+                reason: 'Discussion for LeetCode Daily Question',
+            });
+            this.dailyQuestionThreadId = thread.id; // Store the thread ID
+            thread.send(formattedMessage);
+            channel.send(`<@1214886008823480382> Today's LeetCode question is up in the "Leetcode Daily" thread! 🚀`);
         };
 
-        try {
-            const questionOfTodayQuery = {
-                query: `
-                    query questionOfToday {
-                        activeDailyCodingChallengeQuestion {
-                            question {
-                                title
-                                titleSlug
-                                difficulty
-                            }
-                        }
-                    }
-                `,
-            };
+        const scheduleTask = () => {
+            const now = moment();
+            const next9AM = now.clone().hour(9).minute(0).second(0);
+            if (now.isAfter(next9AM)) next9AM.add(1, 'day');
 
-            let response = await axios.post(graphqlEndpoint, questionOfTodayQuery, { headers });
-            const questionTitle = response.data.data.activeDailyCodingChallengeQuestion.question.title;
-            const questionTitleSlug = response.data.data.activeDailyCodingChallengeQuestion.question.titleSlug;
-            const questionDifficulty = response.data.data.activeDailyCodingChallengeQuestion.question.difficulty;
+            const msUntilNext9AM = next9AM.diff(now);
+            setTimeout(() => {
+                executeDailyTask();
+                setInterval(executeDailyTask, 24 * 60 * 60 * 1000); // Schedule daily
+            }, msUntilNext9AM);
+        };
+        scheduleTask();
+    }
 
-            console.log(`Today's question titleSlug: ${questionTitleSlug}`);
+    private async handleHintCommand(message: Message): Promise<void> {
+        if (message.channelId === this.dailyQuestionThreadId) {
+            try {
+                const hashtags: string[] = await fetchQuestionTags();
 
-            const questionContentQuery = {
-                query: `
-                    query questionContent($titleSlug: String!) {
-                        question(titleSlug: $titleSlug) {
-                            content
-                            mysqlSchemas
-                        }
-                    }
-                `,
-                variables: {
-                    titleSlug: questionTitleSlug
-                }
-            };
+                // Format each tag with backticks and join with newline character for separate lines
+                const hashtagString: string = hashtags.join(' ').split(' ').map(tag => `\`${tag}\``).join(' ');
+                const hintMessage: string = `Question tags:\n${hashtagString}\nThink about the direction you can take with these in mind!`;
 
-            // Execute the second query
-            response = await axios.post(graphqlEndpoint, questionContentQuery, { headers });
-            const questionContent = response.data.data.question.content;
-
-            const discordMarkdownContent = this.htmlToDiscordMarkdown(questionContent);
-
-            console.log(`**LEETCODE DAILY QUESTION: \n ${questionTitle} \n ${questionContent}`);
-
-            // Respond with the question content
-            message.reply(`**LEETCODE DAILY QUESTION:** \n ${questionTitle} \n ${discordMarkdownContent}`);
-            message.reply(`Difficulty: **[${questionDifficulty}]**`)
-        } catch (error) {
-            console.error('Error executing GraphQL query:', error);
-            message.reply('Sorry, there was an error fetching the question information.');
+                message.reply(hintMessage);
+            } catch (error) {
+                console.error('Error in handleHintCommand:', error);
+                message.reply('Sorry, there was an error fetching the hint information.');
+            }
         }
     }
-
-    private handleHintCommand(message: Message): void {
-        // Placeholder
-        message.reply('Here is your hint. Good luck!');
-    }
-
-    private htmlToDiscordMarkdown(html: string): string {
-        let markdown = html
-            // Handle the replacements
-            .replace(/<\s*p[^>]*>\s*<\s*strong[^>]*>(.*?)<\/\s*strong\s*>\s*<\/\s*p\s*>/g, '**$1**\n\n')
-            .replace(/<\s*em\s*>/g, '*') // Italics
-            .replace(/<\s*\/\s*em\s*>/g, '*')
-            .replace(/<\s*code\s*>/g, '`') // Inline code
-            .replace(/<\s*\/\s*code\s*>/g, '`')
-            .replace(/<\s*ul\s*>/g, '') // Remove ul tags
-            .replace(/<\s*\/\s*ul\s*>/g, '')
-            // Add a dash and a space for list items, ensure not to add extra indentation
-            .replace(/<\s*li\s*>/g, '\n- ')
-            .replace(/<\/\s*li\s*>/g, '') // Remove end of list item tag
-            .replace(/<\s*p\s*>/g, '') // Remove p tags
-            .replace(/<\/\s*p\s*>/g, '\n\n') // Paragraph breaks
-            .replace(/<\s*br\s*\/?>/g, '\n') // Line breaks
-            .replace(/&nbsp;/g, ' ') // Space entities
-            .replace(/&lt;/g, '<') // Less than
-            .replace(/&gt;/g, '>') // Greater than
-            .replace(/&amp;/g, '&') // Ampersand
-            .replace(/&quot;/g, '"') // Double quotes
-            .replace(/&apos;/g, '\'') // Single quotes
-            .replace(/<sup>(.*?)<\/sup>/g, '^$1') // Superscript
-            .replace(/(Example \d+:)/g, '**$1**')
-            .replace(/(Input:)/g, '**$1**')
-            .replace(/(Output:)/g, '**$1**')
-            .replace(/(Explanation:)/g, '**$1**')
-            .replace(/(Constraints:)/g, '**$1**')
-            .replace(/<[^>]+>/g, ''); // Remove any remaining tags
-
-        // Normalize line breaks: Reduce multiple newlines to a single newline
-        markdown = markdown.replace(/\n{3,}/g, '\n\n'); // Reduce 3 or more newlines to just double newline
-        markdown = markdown.trim(); // Trim whitespace at start and end
-
-        return markdown;
-    }
-
 }

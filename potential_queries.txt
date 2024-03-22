@@ -1,0 +1,117 @@
+query prevNextSolution($topicId: Int!, $questionSlug: String!, $skip: Int!, $first: Int!, $query: String, $orderBy: TopicSortingOption, $languageTags: [String!], $topicTags: [String!]) {
+  prevSolution(
+    topicId: $topicId
+    filters: {questionSlug: $questionSlug, first: $first, skip: $skip, orderBy: $orderBy, query: $query, languageTags: $languageTags, topicTags: $topicTags}
+  ) {
+    id
+    title
+  }
+  nextSolution(
+    topicId: $topicId
+    filters: {questionSlug: $questionSlug, first: $first, skip: $skip, orderBy: $orderBy, query: $query, languageTags: $languageTags, topicTags: $topicTags}
+  ) {
+    id
+    title
+  }
+}
+{"query": "", "languageTags": [], "topicTags": [], "topicId": 3678229, "topicSlug": "", "questionSlug": "two-sum", "skip": 0, "first": 15, "orderBy": "hot"}
+-----------------------------------------------------------------------------------
+
+
+query questionHints($titleSlug: String!) {
+  question(titleSlug: $titleSlug) {
+    hints
+  }
+}
+
+-----------------------------------------------------------------------------------
+
+query problemsetQuestionList($categorySlug: String, $limit: Int, $skip: Int, $filters: QuestionListFilterInput) {
+  problemsetQuestionList: questionList(
+    categorySlug: $categorySlug
+    limit: $limit
+    skip: $skip
+    filters: $filters
+  ) {
+    total: totalNum
+    questions: data {
+      acRate
+      difficulty
+      freqBar
+      frontendQuestionId: questionFrontendId
+      isFavor
+      paidOnly: isPaidOnly
+      status
+      title
+      titleSlug
+      topicTags {
+        name
+        id
+        slug
+      }
+      hasSolution
+      hasVideoSolution
+    }
+  }
+}
+{"categorySlug": "", "skip": 0, "limit": 50, "filters": {}}
+-----------------------------------------------------------------------------------
+
+query hasOfficialSolution($titleSlug: String!) {
+  question(titleSlug: $titleSlug) {
+    solution {
+      id
+    }
+  }
+}
+{"titleSlug": "two-sum"}
+-----------------------------------------------------------------------------------
+
+
+query officialSolution($titleSlug: String!) {
+  question(titleSlug: $titleSlug) {
+    solution {
+      id
+      title
+      content
+      contentTypeId
+      paidOnly
+      hasVideoSolution
+      paidOnlyVideo
+      canSeeDetail
+      rating {
+        count
+        average
+        userRating {
+          score
+        }
+      }
+      topic {
+        id
+        commentCount
+        topLevelCommentCount
+        viewCount
+        subscribed
+        solutionTags {
+          name
+          slug
+        }
+        post {
+          id
+          status
+          creationDate
+          author {
+            username
+            isActive
+            profile {
+              userAvatar
+              reputation
+            }
+          }
+        }
+      }
+    }
+  }
+}
+{"titleSlug": "two-sum"}
+-----------------------------------------------------------------------------------
