@@ -1,8 +1,8 @@
 export interface FormattedProblem {
-    id: string; // frontendQuestionId
+    id: string;
     title: string;
     url: string;
-    topicTags: string[]; // Simplifying to an array of tag names for concise Discord messages
+    topicTags: string[];
     hints: string[];
-    similarQuestions: string; // Assuming this will be a JSON string or converted to a readable format
+    similarQuestions: string;
 }

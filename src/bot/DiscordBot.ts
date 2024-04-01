@@ -28,7 +28,7 @@ export class DiscordBot {
         this.dailyChannelId = dailyChannelId;
         this.env = env;
         this.leetcode = new Leetcode();
-        this.problemThreadsMap = new Map(); // Initialize the map with the new structure
+        this.problemThreadsMap = new Map();
         this.randomQuestionCount = 0;
         this.lastRandomQuestionDate = new Date();
 
@@ -39,7 +39,6 @@ export class DiscordBot {
         this.client.login(this.token).then(async () => {
             await this.leetcode.initialize();
             this.scheduleAndPostDailyChallenge();
-            // Schedule cleanup to run every hour
             setInterval(() => this.clearExpiredThreadEntries(), 3600 * 1000);
         }).catch(console.error);    
     }
@@ -47,29 +46,26 @@ export class DiscordBot {
     private registerEventListeners(): void {
         this.client.on('ready', () => {
             console.log(`Logged in as ${this.client.user?.tag}!`);
-            // Initialize or perform any actions needed on bot startup
         });
 
         this.client.on('messageCreate', (message: Message) => this.handleIncomingMessage(message));
     }
 
     private handleIncomingMessage(message: Message): void {
-        if (message.author.bot) return; // Ignore messages from bots
+        if (message.author.bot) return;
     
-        // Check if the message is from the main channel or a thread within the allowed channels
         const isFromMainChannel = message.channelId === this.mainChannelId;
         const isFromDailyChannelThread = message.channel.isThread() && message.channel.parentId === this.dailyChannelId;
         const isFromMainChannelThread = message.channel.isThread() && message.channel.parentId === this.mainChannelId;
     
         if (!isFromMainChannel && !isFromDailyChannelThread && !isFromMainChannelThread) {
             console.log(`Received message from unsupported channel or thread: ${message.content}`);
-            return; // Ignore messages not from the specified channels or their threads
+            return;
         }
     
-        // Process commands
         switch (message.content.toLowerCase()) {
             case '!random':
-                if (isFromMainChannel) { // Only allow !random command from the main channel, not threads
+                if (isFromMainChannel) {
                     this.handleRandomCommand(message);
                 }
                 break;
@@ -88,21 +84,19 @@ export class DiscordBot {
 
     private handleRandomCommand(message: Message): void {
         const currentDate = new Date();
-        // Check if the current date is different from the last recorded date
+
         if (currentDate.toLocaleDateString() !== this.lastRandomQuestionDate.toLocaleDateString()) {
-            this.randomQuestionCount = 0; // Reset count if it's a new day
-            this.lastRandomQuestionDate = currentDate; // Update the date
+            this.randomQuestionCount = 0;
+            this.lastRandomQuestionDate = currentDate;
         }
 
-        // Check if the limit of 3 random questions has been reached for the day
         if (this.randomQuestionCount >= 3) {
             message.channel.send("The limit of 3 random questions per day has been reached. Please try again tomorrow.");
             return;
         }
 
-        // Proceed to fetch and send a random question
         this.fetchAndPostRandomQuestion(message).then(() => {
-            this.randomQuestionCount += 1; // Increment the count upon successful posting
+            this.randomQuestionCount += 1;
         }).catch((error) => {
             console.error('Error handling random command:', error);
             message.channel.send("Sorry, I couldn't fetch a random problem.");
@@ -116,8 +110,6 @@ export class DiscordBot {
                 message.reply("There are no hints for this question.");
                 return;
             }
-    
-            // Wrap each hint in spoiler tags
             const hints = entry.problem.hints.map(hint => `||${hint}||`).join('\n\n');
             message.reply(`Solution Hints:\n${hints}`);
         }
@@ -198,7 +190,7 @@ export class DiscordBot {
             }
         };
     
-        cron.schedule('* * * * *', executeDailyTask); // Adjust the schedule as needed
+        cron.schedule('* * * * *', executeDailyTask);
     }
 
     private async fetchAndPostRandomQuestion(message: Message): Promise<void> {
@@ -208,16 +200,39 @@ export class DiscordBot {
             return;
         }
         const formattedProblem = await this.formatProblemForDiscord(problem);
-
+    
+        // Assuming `problem` has similar structure to `dailyChallenge` and includes difficulty
+        const difficulty = problem.difficulty; // or however you can fetch the difficulty
+    
         const channel = message.channel as TextChannel;
         try {
             const thread = await channel.threads.create({
-                name: `Random Problem - ${formattedProblem.title}`,
+                name: `${formattedProblem.id} - ${formattedProblem.title}`,
                 reason: 'Discussion for a Random LeetCode Problem',
             });
-            this.problemThreadsMap.set(thread.id, { problem: formattedProblem, timestamp: Date.now() });
             console.log('Random problem thread created successfully:', thread.name);
-            thread.send(`Here's a random problem for you to solve: **${formattedProblem.title}**\n${formattedProblem.url}`);
+            
+            // Enhanced message format with difficulty and discussion prompts
+            const formattedMessage = [
+                `**Random LeetCode Problem: ${formattedProblem.title}**`,
+                ``,
+                `**Difficulty: ${difficulty}**`, // Assuming we have the difficulty available
+                `${formattedProblem.url}`,
+                '',
+                '**Discuss:**',
+                '- What is your initial approach to solving this problem?',
+                '- Can you identify any potential optimizations?',
+                '- Share any insights or tricks you might know related to this problem.',
+                '',
+                'Before jumping into coding, consider discussing your strategies or thoughts on the above topics.',
+                '',
+                'Need a nudge in the right direction?',
+                '`!hint` - Can provide hints to guide you.',
+                '`!tags` - Will show the topic tags for this problem, helping you understand its categories.'
+            ].join('\n');
+    
+            this.problemThreadsMap.set(thread.id, { problem: formattedProblem, timestamp: Date.now() });
+            thread.send(formattedMessage);
         } catch (error) {
             console.error('Failed to create random problem thread:', error);
             throw new Error('Failed to create thread');
@@ -226,7 +241,7 @@ export class DiscordBot {
 
     private clearExpiredThreadEntries(): void {
         const now = Date.now();
-        const ttl = 1440 * 60 * 1000; // 24 hours in milliseconds
+        const ttl = 1440 * 60 * 1000;
         this.problemThreadsMap.forEach((value, key) => {
             if (now - value.timestamp > ttl) {
                 this.problemThreadsMap.delete(key);
