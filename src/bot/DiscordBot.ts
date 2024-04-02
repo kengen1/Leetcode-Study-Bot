@@ -192,6 +192,10 @@ export class DiscordBot {
             await this.postDailyChallenge();
             await this.postRoadmapQuestion();
             this.roadmapDayCounter++;
+
+            if(this.roadmapDayCounter == 150){
+                this.roadmapDayCounter = 1;
+            }
         });
     }
 
