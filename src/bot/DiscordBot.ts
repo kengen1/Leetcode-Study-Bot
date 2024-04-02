@@ -9,13 +9,15 @@ export class DiscordBot {
     private readonly token: string;
     private readonly mainChannelId: string;
     private readonly dailyChannelId: string;
+    private readonly roadmapChannelId: string;
     private readonly env: string;
     private leetcode: Leetcode;
     private problemThreadsMap: Map<string, { problem: FormattedProblem; timestamp: number }>;
     private randomQuestionCount: number;
     private lastRandomQuestionDate: Date;
+    private roadmapDayCounter: number;
 
-    constructor(token: string, mainChannelId: string, dailyChannelId: string, env: string) {
+    constructor(token: string, mainChannelId: string, dailyChannelId: string, roadmapChannelId: string, env: string) {
         this.client = new Client({
             intents: [
                 GatewayIntentBits.Guilds,
@@ -26,11 +28,13 @@ export class DiscordBot {
         this.token = token;
         this.mainChannelId = mainChannelId;
         this.dailyChannelId = dailyChannelId;
+        this.roadmapChannelId = roadmapChannelId;
         this.env = env;
         this.leetcode = new Leetcode();
         this.problemThreadsMap = new Map();
         this.randomQuestionCount = 0;
         this.lastRandomQuestionDate = new Date();
+        this.roadmapDayCounter = 1;
 
         this.registerEventListeners();
     }
@@ -38,7 +42,7 @@ export class DiscordBot {
     public start(): void {
         this.client.login(this.token).then(async () => {
             await this.leetcode.initialize();
-            this.scheduleAndPostDailyChallenge();
+            this.scheduleDailyTasks();
             setInterval(() => this.clearExpiredThreadEntries(), 3600 * 1000);
         }).catch(console.error);    
     }
@@ -139,72 +143,17 @@ export class DiscordBot {
         };
     }
 
-    private scheduleAndPostDailyChallenge(): void {
-        const executeDailyTask = async () => {
-            console.log('Executing daily task at', new Date().toISOString());
-    
-            const dailyChallenge = await this.leetcode.getDailyQuestion();
-            if (!dailyChallenge) {
-                console.error('Failed to fetch daily challenge.');
-                return;
-            }
-    
-            const formattedProblem = await this.formatProblemForDiscord(dailyChallenge.question);
-    
-            const link = formattedProblem.url;
-            const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-            
-            const formattedMessage = [
-                `**LeetCode Daily Challenge - ${today}**`,
-                ``,
-                `**Title: ${formattedProblem.title}**`,
-                `**Difficulty: ${dailyChallenge.question.difficulty}**`,
-                link,
-                '',
-                '**Discuss:**',
-                '- What\'s the brute force approach for this question?',
-                '- How can we optimize the algorithm?',
-                '- Is there a trick to this question? If so, what is it?',
-                '',
-                'Before sending code, please try and answer some or all of the above questions to spark conversation.',
-                '',
-                'Stuck? Here are some commands that can help:',
-                '`!hint` - Can provide one or many hints of increasing helpfulness.',
-                '`!tags` - Will provide the topic tags for this question.'
-            ].join('\n');
-    
-            const channel = this.client.channels.cache.get(this.dailyChannelId) as TextChannel;
-            if (!channel) return;
-    
-            try {
-                const thread = await channel.threads.create({
-                    name: 'Daily Challenge',
-                    autoArchiveDuration: 1440,
-                    reason: 'Discussion for the Daily Challenge',
-                });
-                console.log('Thread created successfully:', thread.name);
-                this.problemThreadsMap.set(thread.id, { problem: formattedProblem, timestamp: Date.now() });
-                thread.send(formattedMessage);
-            } catch (error) {
-                console.error('Failed to create thread:', error);
-            }
-        };
-    
-        cron.schedule('* * * * *', executeDailyTask);
-    }
-
     private async fetchAndPostRandomQuestion(message: Message): Promise<void> {
         const problem = await this.leetcode.getRandomProblem();
         if (!problem) {
             message.channel.send("Unable to fetch a random problem at this time.");
             return;
         }
+
         const formattedProblem = await this.formatProblemForDiscord(problem);
-    
-        // Assuming `problem` has similar structure to `dailyChallenge` and includes difficulty
-        const difficulty = problem.difficulty; // or however you can fetch the difficulty
-    
+        const difficulty = problem.difficulty;
         const channel = message.channel as TextChannel;
+
         try {
             const thread = await channel.threads.create({
                 name: `${formattedProblem.id} - ${formattedProblem.title}`,
@@ -212,11 +161,10 @@ export class DiscordBot {
             });
             console.log('Random problem thread created successfully:', thread.name);
             
-            // Enhanced message format with difficulty and discussion prompts
             const formattedMessage = [
                 `**Random LeetCode Problem: ${formattedProblem.title}**`,
                 ``,
-                `**Difficulty: ${difficulty}**`, // Assuming we have the difficulty available
+                `**Difficulty: ${difficulty}**`,
                 `${formattedProblem.url}`,
                 '',
                 '**Discuss:**',
@@ -236,6 +184,112 @@ export class DiscordBot {
         } catch (error) {
             console.error('Failed to create random problem thread:', error);
             throw new Error('Failed to create thread');
+        }
+    }
+
+    private scheduleDailyTasks(): void {
+        cron.schedule('0 9 * * *', async () => {
+            await this.postDailyChallenge();
+            await this.postRoadmapQuestion();
+            this.roadmapDayCounter++;
+        });
+    }
+
+    private async postDailyChallenge(): Promise<void> {
+        console.log('Posting daily challenge at', new Date().toISOString());
+
+        const dailyChallenge = await this.leetcode.getDailyQuestion();
+        if (!dailyChallenge) {
+            console.error('Failed to fetch daily challenge.');
+            return;
+        }
+
+        const formattedProblem = await this.formatProblemForDiscord(dailyChallenge.question);
+        const link = formattedProblem.url;
+        const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+        const formattedMessage = [
+            `**LeetCode Daily Challenge - ${today}**`,
+            ``,
+            `**Title: ${formattedProblem.title}**`,
+            `**Difficulty: ${dailyChallenge.question.difficulty}**`,
+            link,
+            '',
+            '**Discuss:**',
+            '- What\'s the brute force approach for this question?',
+            '- How can we optimize the algorithm?',
+            '- Is there a trick to this question? If so, what is it?',
+            '',
+            'Before sending code, please try and answer some or all of the above questions to spark conversation.',
+            '',
+            'Stuck? Here are some commands that can help:',
+            '`!hint` - Can provide one or many hints of increasing helpfulness.',
+            '`!tags` - Will provide the topic tags for this question.'
+        ].join('\n');
+
+        const channel = this.client.channels.cache.get(this.dailyChannelId) as TextChannel;
+        if (!channel) return;
+
+        try {
+            const thread = await channel.threads.create({
+                name: 'Daily Challenge',
+                autoArchiveDuration: 1440,
+                reason: 'Discussion for the Daily Challenge',
+            });
+            console.log('Thread created successfully:', thread.name);
+            this.problemThreadsMap.set(thread.id, { problem: formattedProblem, timestamp: Date.now() });
+            thread.send(formattedMessage);
+        } catch (error) {
+            console.error('Failed to create thread:', error);
+        }
+    }
+    
+    private async postRoadmapQuestion(): Promise<void> {
+        console.log('Posting roadmap question at', new Date().toISOString());
+
+        const roadmapProblem = await this.leetcode.getRoadmapProblem(this.roadmapDayCounter);
+        if (!roadmapProblem) {
+            console.error(`Failed to fetch roadmap question for day ${this.roadmapDayCounter}.`);
+            return;
+        }
+
+        const formattedProblem = roadmapProblem.problem;
+        const link = formattedProblem.url;
+        const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+        const formattedMessage = [
+            `**LeetCode Roadmap Challenge - ${today}**`,
+            ``,
+            `**Title: ${formattedProblem.title}**`,
+            `**Category: ${roadmapProblem.problemCategory.category}**`,
+            link,
+            '',
+            '**Discuss:**',
+            '- What\'s the brute force approach for this question?',
+            '- How can we optimize the algorithm?',
+            '- Is there a trick to this question? If so, what is it?',
+            '',
+            'Feel free to discuss your approach and thoughts on this problem.',
+            '',
+            'Need some hints or want to know more about the topic tags?',
+            '`!hint` - Provides hints for solving the problem.',
+            '`!tags` - Shows the topic tags related to this problem.'
+        ].join('\n');
+
+        const channel = this.client.channels.cache.get(this.roadmapChannelId) as TextChannel;
+        if (!channel) return;
+
+        try {
+            const thread = await channel.threads.create({
+                name: `Roadmap Challenge - Day ${this.roadmapDayCounter}`,
+                autoArchiveDuration: 1440,
+                reason: 'Discussion for the Roadmap Challenge',
+            });
+            console.log('Roadmap question thread created successfully:', thread.name);
+            this.problemThreadsMap.set(thread.id, { problem: formattedProblem, timestamp: Date.now() });
+            thread.send(formattedMessage);
+        } catch (error) {
+            console.error('Failed to create roadmap question thread:', error);
         }
     }
 
