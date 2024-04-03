@@ -5,7 +5,7 @@ This Discord bot is built to improve the process of preparing for technical inte
 ## Features
 
 - **Daily Challenge Retrieval**: Fetches and posts the LeetCode question of the day in a specified channel.
-- **Tags on Demand**: 
+- **Tags on Demand**: Provides users with topic tags for LeetCode questions on request. This feature assists users who are encountering difficulties by guiding their problem-solving approach to known DSA concepts.
 - **Hints on Demand**: Offers hints for LeetCode questions to aid users in finding solutions.
 - **Roadmap Discussion Threads**: Automates the creation and management of daily threads for a series of questions following a predefined roadmap, encouraging focused group study sessions.
 
