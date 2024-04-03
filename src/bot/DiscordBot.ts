@@ -10,14 +10,13 @@ export class DiscordBot {
     private readonly mainChannelId: string;
     private readonly dailyChannelId: string;
     private readonly roadmapChannelId: string;
-    private readonly env: string;
     private leetcode: Leetcode;
     private problemThreadsMap: Map<string, { problem: FormattedProblem; timestamp: number }>;
     private randomQuestionCount: number;
     private lastRandomQuestionDate: Date;
     private roadmapDayCounter: number;
 
-    constructor(token: string, mainChannelId: string, dailyChannelId: string, roadmapChannelId: string, env: string) {
+    constructor(token: string, mainChannelId: string, dailyChannelId: string, roadmapChannelId: string) {
         this.client = new Client({
             intents: [
                 GatewayIntentBits.Guilds,
@@ -29,7 +28,6 @@ export class DiscordBot {
         this.mainChannelId = mainChannelId;
         this.dailyChannelId = dailyChannelId;
         this.roadmapChannelId = roadmapChannelId;
-        this.env = env;
         this.leetcode = new Leetcode();
         this.problemThreadsMap = new Map();
         this.randomQuestionCount = 0;
