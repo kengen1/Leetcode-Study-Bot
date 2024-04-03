@@ -1,10 +1,11 @@
 # TypeScript LeetCode Discord Bot
 
-This Discord bot is built to enhance the coding practice experience by integrating LeetCode challenges directly within your Discord server. It simplifies the process of accessing LeetCode problems, offering hints, and managing discussions through automated features. Developed using TypeScript and Node.js, this bot brings a structured approach to tackling coding problems as a community.
+This Discord bot is built to improve the process of preparing for technical interviews by integrating LeetCode challenges directly within your Discord server. It simplifies and automates the retrieval of LeetCode problems, topic tags, solution hints, as well as providing dedicated spaces for discussion and collaboration on problems. Developed using TypeScript and Node.js, this bot brings a structured approach to tackling interview problems as a community.
 
 ## Features
 
 - **Daily Challenge Retrieval**: Fetches and posts the LeetCode question of the day in a specified channel.
+- **Tags on Demand**: 
 - **Hints on Demand**: Offers hints for LeetCode questions to aid users in finding solutions.
 - **Roadmap Discussion Threads**: Automates the creation and management of daily threads for a series of questions following a predefined roadmap, encouraging focused group study sessions.
 
@@ -17,7 +18,7 @@ This Discord bot is built to enhance the coding practice experience by integrati
 ### Installation
 
 1. **Clone the Repository**
-   - Use `git clone <repository-url>` to clone this project to your local machine.
+   - Use `git clone https://github.com/kengen1/Leetcode-Study-Bot.git` to clone this project to your local machine.
 
 2. **Install Dependencies**
    - Change to the project directory and execute:
@@ -32,6 +33,8 @@ This Discord bot is built to enhance the coding practice experience by integrati
     DISCORD_TOKEN=<insert token>
     DISCORD_CLIENT_ID=<insert client id>
     DISCORD_CHANNEL_ID=<insert channel id>
+    DISCORD_DAILY_CHALLENGE_CHANNEL_ID=<insert daily challenge channel id>
+    DISCORD_ROADMAP_CHANNEL_ID=<insert roadmap channel id>
     ```
 
 4. **Start the Development Server**
@@ -45,13 +48,6 @@ This Discord bot is built to enhance the coding practice experience by integrati
 
 Once the bot is operational on your Discord server, it can be interacted with using the following commands:
 
-- **Help**: `!help` — Displays a list of available commands.
-- **Daily Challenge**: `!daily` — Retrieves and posts the LeetCode question of the day.
-- **Request a Hint**: `!hint <question-id>` — Provides a hint for the specified LeetCode question.
-
-## Contributing
-
-- **Branching**: For new features, bug fixes, or refactors, please create a separate branch prefixed accordingly with `feature/`, `bugfix/`, or `refactor/`, followed by a brief description of your work.
-- **Pull Requests (PRs)**: Once your work is ready for review, create a pull request against the main branch.
-- **Commit Categorization**: We use Gitmoji to categorize commits.
-- **Squashing Commits**: Before merging, squash your commits in your pull request to maintain a clean and linear project history. This practice simplifies reverting changes and understanding project evolution.
+- **Request a Random Problem to Solve**: `!random` - Creates a dedicated thread for a randomly selected leetcode problem.
+- **Request Topic Tags for a Problem**: `!tags` - Provides all available topic tags for a given question (This command can only be called within a question thread).
+- **Request a Hint**: `!hint` — Provides all hints for the specified LeetCode question, in hidden message format (This command can only be called within a question thread).
