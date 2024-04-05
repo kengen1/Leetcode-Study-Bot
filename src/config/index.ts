@@ -8,7 +8,7 @@ const {
   DISCORD_CHANNEL_ID, 
   DISCORD_DAILY_CHALLENGE_CHANNEL_ID,
   DISCORD_ROADMAP_CHANNEL_ID,
-  ROLE_ID 
+  LEETCODE_ROLE_ID 
 } = process.env;
 
 if (
@@ -17,7 +17,7 @@ if (
   !DISCORD_CHANNEL_ID || 
   !DISCORD_DAILY_CHALLENGE_CHANNEL_ID || 
   !DISCORD_ROADMAP_CHANNEL_ID ||
-  !ROLE_ID
+  !LEETCODE_ROLE_ID
   ) {
   throw new Error("Missing environment variables");
 }
@@ -28,5 +28,5 @@ export const config = {
   DISCORD_CHANNEL_ID,
   DISCORD_DAILY_CHALLENGE_CHANNEL_ID,
   DISCORD_ROADMAP_CHANNEL_ID,
-  ROLE_ID
+  LEETCODE_ROLE_ID
 };
